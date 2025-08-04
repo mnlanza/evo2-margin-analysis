@@ -1,0 +1,17 @@
+# Python cache files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environment
+venv/
+
+# Project specific directories
+output/
+jobs/
+
+# IDE settings (common ones added as a best practice)
+.vscode/
+.idea/
+*.swp
+.DS_Store
