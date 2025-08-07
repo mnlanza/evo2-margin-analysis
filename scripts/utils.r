@@ -321,19 +321,6 @@ probability_correct_base <- function(gene, df_gene, all_variants) {
           gene, answer)
 }
 
-#  # Get sequences and find the no-margin version for comparison
-#   seqs <- as.character(all_variants)
-#   # Get the base sequence name (without margin) by removing the last part after last underscore
-#   base_seq_name <- sub("_[^_]+$", "_0", sequence_name)
-#   # Get the no-margin sequence for comparison
-#   base_seq <- seqs[base_seq_name]
-#   base_seq_vec <- strsplit(base_seq, split = "")[[1]]
-  
-#   # Calculate log-likelihood using the no-margin sequence
-#   log_likelihood <- mapply(function(base, i) {
-#       base_index <- match(base, c("A", "C", "G", "T"))
-#       log2(prob_matrix[i, base_index])}, base_seq_vec, seq_along(base_seq_vec))
-
 #' Create stacked plots for a variant at different margins
 #' 
 #' @param variant_name Name of the variant
@@ -344,8 +331,8 @@ probability_correct_base <- function(gene, df_gene, all_variants) {
 #' @return ggplot object
 plot_stacked_margins <- function(variant_name, variant_dfs, aa_pos, index_rows = 300:400,
                                metric = "entropy") {
-  # Get data for margins 0, 40k, 80k
-  margins <- c(0, 40000, 80000)
+  # Get data for margins 
+  margins <- c(0, 4000, 8000, 20000)
   plot_data <- data.frame()
   
   for (margin in margins) {
@@ -362,7 +349,7 @@ plot_stacked_margins <- function(variant_name, variant_dfs, aa_pos, index_rows =
   
   # Convert margin to factor with specific order
   plot_data$margin <- factor(plot_data$margin, 
-                           levels = c("0kb", "40kb", "80kb"))
+                           levels = c("0kb", "4kb", "8kb", "20kb"))
   
   # Create base plot
   p <- ggplot(plot_data, aes(x = pos)) +
@@ -371,8 +358,9 @@ plot_stacked_margins <- function(variant_name, variant_dfs, aa_pos, index_rows =
     
   # Define colors for each margin level
   margin_colors <- c("0kb" = "#1f77b4",    # blue
-                    "40kb" = "#2ca02c",    # green
-                    "80kb" = "#ff7f0e")    # orange
+                    "4kb" = "#2ca02c",    # green
+                    "8kb" = "#ff7f0e",    # orange
+                    "20kb" = "#d62728")   # red
   
   # Add points with different colors per margin
   p <- p + geom_point(aes(y = value, color = margin), size = 1, alpha = 0.7) +
@@ -412,7 +400,7 @@ plot_stacked_margins <- function(variant_name, variant_dfs, aa_pos, index_rows =
 plot_margin_comparison <- function(variant_dfs, aa_pos, index_rows = 300:400,
                                  metric = "entropy") {
   # Get data for margins 0 and 100k
-  margins <- c(0, 100000)
+  margins <- c(0, 4000)
   plots <- list()  # Store plots for each variant
   
   # Extract variant base names (without margins)
@@ -468,7 +456,7 @@ plot_margin_comparison <- function(variant_dfs, aa_pos, index_rows = 300:400,
       geom_vline(xintercept = mut_pos_nt, linetype="solid", color="yellow", linewidth=1, alpha=0.3) +
       geom_vline(xintercept = mut_pos_nt + 1, linetype="solid", color="yellow", linewidth=1, alpha=0.3) +
       geom_vline(xintercept = mut_pos_nt + 2, linetype="solid", color="yellow", linewidth=1, alpha=0.3) +
-      scale_color_manual(values = c("0kb" = "blue", "100kb" = "red")) +
+      scale_color_manual(values = c("0kb" = "blue", "4kb" = "red")) +
       labs(x = "Nucleotide position",
            y = ifelse(metric == "entropy", "Entropy", "Log-likelihood"),
            title = sprintf("%s comparison (AA: %s, Codon: %s)",

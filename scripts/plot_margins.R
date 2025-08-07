@@ -73,8 +73,10 @@ print("Variants:")
 print(variants)
 
 
-# Define margins and ensure they're formatted as regular numbers
-margins <- sprintf("%d", c(0, 20000, 40000, 60000, 80000, 100000))
+# Define margins based on left_margin from TSV (0 to 5x)
+margins <- sprintf("%d", seq(0, 5 * left_margin, by = left_margin))
+print("Generated margins:")
+print(margins)
 for (margin in margins) {
   print(paste("Processing margin:", margin))
   # Iterate through variants and store results

@@ -26,7 +26,7 @@ while IFS=$'\t' read -r aid _ _ _ _ _ _ _ _ _ || [ -n "$aid" ]; do
 done < "input/updated_data.tsv"
 
 # Shared parameters (using no margin for now and then adding different margins in gen_for_cod_var_marg.py)
-left_margin=20000
+left_margin=4000
 right_margin=0
 input_fasta="input/human_contigs_src.fasta"
 

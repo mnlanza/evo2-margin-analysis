@@ -79,20 +79,26 @@ python3 scripts/gen_for_cod_var_marg.py \
   --aid "$aid" \
   --mut-codon "$tgt_codon"
 
-# # Submit job and wait for completion
-# echo "Submitting job to GCP..."
-# evo_gcp submit --job "$job_id" \
-#   --input_fasta "$(pwd)/$fasta_out" \
-#   --query_table "$(pwd)/$query_table" \
-#   --job_version "$job_version" \
-#   --output_type logits \
-#   --wait
+# Submit job and wait for completion
+echo "Submitting job to GCP..."
+evo_gcp submit --job "$job_id" \
+  --input_fasta "$(pwd)/$fasta_out" \
+  --query_table "$(pwd)/$query_table" \
+  --job_version "$job_version" \
+  --output_type logits \
+  --wait
 
-# # Download results
-# echo "Downloading results from GCP..."
-# evo_gcp download --job "$job_id" \
-#   --job_version "$job_version" \
-#   --jobs_dir "$(pwd)/jobs"
+# Download results
+echo "Downloading results from GCP..."
+evo_gcp download --job "$job_id" \
+  --job_version "$job_version" \
+  --jobs_dir "$(pwd)/jobs"
+
+# Verify logits files were downloaded properly
+if ls "${logits_dir}"/*.gstmp >/dev/null 2>&1; then
+  echo "Error: Found .gstmp files in logits directory. Download may have failed."
+  exit 1
+fi
 
 Rscript scripts/plot_margins.R \
   --seq_data "$seq_info_table" \
