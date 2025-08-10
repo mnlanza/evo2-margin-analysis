@@ -10,7 +10,7 @@ if [ -n "$pos_filter" ] && [ -z "$aid_filter" ]; then
     echo "Usage: $0 [AID] [POSITION]"
     echo "Examples:"
     echo "  $0          # Run all aids and positions"
-    echo "  $0 BAA      # Run all positions for BAA"
+    echo "  $0 BAA      # Run mut positions for BAA"
     echo "  $0 BAA 154  # Run only position 154 for BAA"
     exit 1
 fi
@@ -25,8 +25,8 @@ while IFS=$'\t' read -r aid _ _ _ _ _ _ _ _ _ || [ -n "$aid" ]; do
     mkdir -p "output/${aid_lower}" "figures/${aid_lower}"
 done < "input/updated_data.tsv"
 
-# Shared parameters (using no margin for now and then adding different margins in gen_for_cod_var_marg.py)
-left_margin=4000
+# Shared parameters (using base margin of 10 and then using powers of 10 in gen_for_cod_var_marg.py)
+left_margin=10
 right_margin=0
 input_fasta="input/human_contigs_src.fasta"
 

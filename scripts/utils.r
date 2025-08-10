@@ -8,6 +8,7 @@ np <- import("numpy")
 # This script normalizes EVO2 input and adds a row to account for
 # EVO2 not having prediction data for the first position (nuc)
 
+
 #' Create stacked bar plots showing total log-likelihood for each margin size
 #' 
 #' @param variant_dfs List of dataframes containing variant data
@@ -17,8 +18,10 @@ plot_total_loglik_margins <- function(variant_dfs, variant_bases) {
   # Initialize data frame for plotting
   plot_data <- data.frame()
   
-  # Get data for all variants and margins
-  margins <- c(0, 20000, 40000, 60000, 80000, 100000)
+  # Get unique margins from the data
+  margins <- sort(unique(as.numeric(sapply(names(variant_dfs), function(name) {
+    strsplit(name, "_")[[1]][4]  # Get the margin part
+  }))))
   for (variant_base in variant_bases) {
     variant_parts <- strsplit(variant_base, "_")[[1]]
     aa <- variant_parts[2]
@@ -39,8 +42,9 @@ plot_total_loglik_margins <- function(variant_dfs, variant_bases) {
   }
   
   # Convert margin to factor with specific order
+  margin_kb <- margins/1000
   plot_data$margin <- factor(plot_data$margin, 
-                           levels = paste0(c(0, 20, 40, 60, 80, 100), "kb"))
+                           levels = paste0(margin_kb, "kb"))
   
   # Convert variant to factor to maintain order
   plot_data$variant <- factor(plot_data$variant, levels = unique(plot_data$variant))
@@ -331,36 +335,55 @@ probability_correct_base <- function(gene, df_gene, all_variants) {
 #' @return ggplot object
 plot_stacked_margins <- function(variant_name, variant_dfs, aa_pos, index_rows = 300:400,
                                metric = "entropy") {
-  # Get data for margins 
-  margins <- c(0, 4000, 8000, 20000)
+  # Get data for specific margins (0, 10, 100, 1000, 10000, 100000)
+  margins <- c(0, 10, 100, 1000, 10000, 100000)
+  # Ensure we use regular notation, not scientific
+  options(scipen=999)
   plot_data <- data.frame()
   
+  # Debug: Print available variants
+  print("Available variants in variant_dfs:")
+  print(names(variant_dfs))
+  
   for (margin in margins) {
-    df_name <- paste0(variant_name, "_", margin)
+    df_name <- paste0(variant_name, "_", sprintf("%d", margin))  # Ensure consistent formatting
+    print(paste("Looking for:", df_name))
     if (!df_name %in% names(variant_dfs)) {
-      stop(paste("Data not found for", df_name))
+      print(paste("  Not found:", df_name))
+      next  # Skip if data not found instead of stopping
     }
+    print(paste("  Found:", df_name))
     
     df <- variant_dfs[[df_name]]
     subset <- build_plot_df(df, metric, index_rows)
-    subset$margin <- paste0(margin/1000, "kb")  # Convert to kb for display
+    # Format margin label
+    margin_label <- if(margin >= 1000) {
+      paste0(margin/1000, "kb")
+    } else {
+      paste0(margin, "bp")
+    }
+    subset$margin <- margin_label
     plot_data <- rbind(plot_data, subset)
   }
   
-  # Convert margin to factor with specific order
-  plot_data$margin <- factor(plot_data$margin, 
-                           levels = c("0kb", "4kb", "8kb", "20kb"))
+  # Convert margin to factor with specific order based on actual data
+  available_margins <- sort(as.numeric(unique(sapply(strsplit(names(variant_dfs), "_"), function(x) x[length(x)]))))
+  margin_labels <- sapply(available_margins, function(m) {
+    if(m >= 1000) paste0(m/1000, "kb") else paste0(m, "bp")
+  })
+  plot_data$margin <- factor(plot_data$margin, levels = margin_labels)
   
   # Create base plot
   p <- ggplot(plot_data, aes(x = pos)) +
     coord_cartesian(xlim = c(min(index_rows), max(index_rows))) +
     facet_grid(margin ~ ., scales = "free_y")  # Stack plots vertically
     
-  # Define colors for each margin level
-  margin_colors <- c("0kb" = "#1f77b4",    # blue
-                    "4kb" = "#2ca02c",    # green
-                    "8kb" = "#ff7f0e",    # orange
-                    "20kb" = "#d62728")   # red
+  # Define colors for each margin level using a gradient
+  n_margins <- length(unique(plot_data$margin))
+  margin_colors <- setNames(
+    colorRampPalette(c("#1f77b4", "#2ca02c", "#ff7f0e", "#d62728"))(n_margins),
+    unique(plot_data$margin)  # Use actual margins present in data
+  )
   
   # Add points with different colors per margin
   p <- p + geom_point(aes(y = value, color = margin), size = 1, alpha = 0.7) +
@@ -399,8 +422,8 @@ plot_stacked_margins <- function(variant_name, variant_dfs, aa_pos, index_rows =
 #' @return ggplot object
 plot_margin_comparison <- function(variant_dfs, aa_pos, index_rows = 300:400,
                                  metric = "entropy") {
-  # Get data for margins 0 and 100k
-  margins <- c(0, 4000)
+  # Use 0, 100, and 1000 for comparison plots
+  margins <- c(0, 100, 1000)
   plots <- list()  # Store plots for each variant
   
   # Extract variant base names (without margins)
@@ -418,7 +441,7 @@ plot_margin_comparison <- function(variant_dfs, aa_pos, index_rows = 300:400,
     print(paste("Processing variant:", variant))
     plot_data <- data.frame()
     
-    # Get data for both margins
+    # Get data for all margins
     margin_data <- list()
     for (margin in margins) {
       # Format margin as regular number, not scientific notation
@@ -436,8 +459,8 @@ plot_margin_comparison <- function(variant_dfs, aa_pos, index_rows = 300:400,
     }
     
     print(paste("  Found data for", length(margin_data), "margins"))
-    # Only proceed if we have data for both margins
-    if (length(margin_data) == 2) {
+    # Only proceed if we have data for at least 2 margins
+    if (length(margin_data) >= 2) {
       plot_data <- do.call(rbind, margin_data)
       
       # Create line plot
@@ -456,7 +479,7 @@ plot_margin_comparison <- function(variant_dfs, aa_pos, index_rows = 300:400,
       geom_vline(xintercept = mut_pos_nt, linetype="solid", color="yellow", linewidth=1, alpha=0.3) +
       geom_vline(xintercept = mut_pos_nt + 1, linetype="solid", color="yellow", linewidth=1, alpha=0.3) +
       geom_vline(xintercept = mut_pos_nt + 2, linetype="solid", color="yellow", linewidth=1, alpha=0.3) +
-      scale_color_manual(values = c("0kb" = "blue", "4kb" = "red")) +
+      scale_color_manual(values = setNames(c("blue", "red", "green"), paste0(margins/1000, "kb"))) +
       labs(x = "Nucleotide position",
            y = ifelse(metric == "entropy", "Entropy", "Log-likelihood"),
            title = sprintf("%s comparison (AA: %s, Codon: %s)",

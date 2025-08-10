@@ -42,7 +42,7 @@ def find_synonymous_codon(codon_to_aa, original_codon):
     # Return first synonymous codon if exists, otherwise return original
     return synonymous_codons[0] if synonymous_codons else original_codon
 
-def write_query_table(output_path, aa_coord, all_codons, codon_to_aa, gene_length, left_margin):
+def write_query_table(output_path, aa_coord, all_codons, codon_to_aa, gene_length, left_margin, gene_start):
     """Write a query table specifying the gene coordinates for all variants"""
     print(f"Creating query table at: {output_path}")
     with open(output_path, 'w') as f:
@@ -51,15 +51,17 @@ def write_query_table(output_path, aa_coord, all_codons, codon_to_aa, gene_lengt
         for codon in all_codons:
             aa = codon_to_aa.get(codon, 'X')
             aa = 'Z' if aa == '*' else aa
-            # For no margin (0) and each margin size (1-5 times left_margin)
-            for margin_idx in range(6):
-                seq_id = f"{aa_coord}_{aa}_{codon}_{margin_idx * left_margin}"
-                if margin_idx == 0:
+            # Candidate margins by powers of 10; keep only margins smaller than gene start
+            candidate_margins = [0] + [left_margin * (10**n) for n in range(5)]
+            margins = [m for m in candidate_margins if m < gene_start]
+            for margin_size in margins:
+                seq_id = f"{aa_coord}_{aa}_{codon}_{margin_size}"
+                if margin_size == 0:
                     # No margin case: gene starts at position 1
                     start_pos = 1
                 else:
                     # With margin: gene starts after the margin
-                    start_pos = margin_idx * left_margin + 1
+                    start_pos = margin_size + 1
                 # End position is always start_pos + gene_length - 1
                 end_pos = start_pos + gene_length - 1
                 f.write(f"{seq_id}\t{start_pos}\t{end_pos}\n")
@@ -101,7 +103,15 @@ def main():
     
     # Write query table if path is provided
     if args.query_table:
-        write_query_table(args.query_table, args.aa_coord, all_codons, codon_to_aa, gene_length, args.left_margin)
+        write_query_table(
+            output_path=args.query_table,
+            aa_coord=args.aa_coord,
+            all_codons=all_codons,
+            codon_to_aa=codon_to_aa,
+            gene_length=gene_length,
+            left_margin=args.left_margin,
+            gene_start=args.gene_start,
+        )
 
     # calculate nucleotide position (1-based aa coord to 0-based nucleotide)
     nt_start = (args.aa_coord - 1) * 3
@@ -144,10 +154,11 @@ def main():
             # Create base variant sequence (no margins)
             variant_seq = gene_seq[:nt_start] + codon + gene_seq[nt_end:]
             
-            # Write sequences with different margins (0-5 times left_margin)
-            for n in range(0, 6):  # 0 through 5
-                current_margin_size = n * args.left_margin
-                if n == 0:
+            # Candidate margins by powers of 10; keep only margins smaller than gene start
+            candidate_margins = [0] + [args.left_margin * (10**n) for n in range(5)]
+            margins = [m for m in candidate_margins if m < args.gene_start]
+            for current_margin_size in margins:
+                if current_margin_size == 0:
                     # No margin case - just use variant sequence
                     out.write(f">{args.aa_coord}_{aa}_{codon}_0\n")
                     out.write(f"{variant_seq}\n")

@@ -73,8 +73,10 @@ print("Variants:")
 print(variants)
 
 
-# Define margins based on left_margin from TSV (0 to 5x)
-margins <- sprintf("%d", seq(0, 5 * left_margin, by = left_margin))
+# Define margins using powers of 10 up to 100000
+margins <- c(0, 10, 100, 1000, 10000, 100000)
+# Ensure we use regular notation, not scientific
+options(scipen=999)
 print("Generated margins:")
 print(margins)
 for (margin in margins) {
@@ -111,8 +113,8 @@ for (margin in margins) {
   }
 }
 
-# nucleotide positions to plot
-nuc_plot_range <- 1:500
+# nucleotide positions to plot for comparison plots
+nuc_plot_range <- 1:200
 
 # Print total log-likelihoods for each variant
 print("\nTotal log-likelihoods for each variant:")
@@ -128,7 +130,13 @@ base_figures_dir <- file.path("figures", opt$aid)
 # Process each margin size
 for (margin in margins) {
   # Create margin-specific directory
-  margin_dir <- file.path(base_figures_dir, paste0("margin_", margin), paste0("full"))
+  # Format margin size for directory name
+  margin_label <- if(margin >= 1000) {
+    paste0(margin/1000, "kb")
+  } else {
+    paste0(margin, "bp")
+  }
+  margin_dir <- file.path(base_figures_dir, paste0("margin_", margin_label), paste0("full"))
   dir.create(margin_dir, recursive = TRUE, showWarnings = FALSE)
   
   # Process each variant type (src, mut, syn, stop)
@@ -216,6 +224,9 @@ ggsave(
   height = 6 # Taller to accommodate stacked plots
 )
 
+gene_length <- seq_data$end - seq_data$start + 1
+print(paste("Gene length:", gene_length))
+
 # Create stacked plots for each variant
 for (i in seq_along(variants)) {
   codon <- names(variants)[i]
@@ -227,7 +238,7 @@ for (i in seq_along(variants)) {
     variant_name = variant_base,
     variant_dfs = variant_dfs,
     aa_pos = aa_coord,
-    index_rows = 1:3234,
+    index_rows = 1:gene_length,
     metric = "entropy"
   )
   ggsave(file.path(stacked_dir, paste0("entropy_", aa, "_", codon, ".pdf")), 
@@ -238,7 +249,7 @@ for (i in seq_along(variants)) {
     variant_name = variant_base,
     variant_dfs = variant_dfs,
     aa_pos = aa_coord,
-    index_rows = 1:3234,
+    index_rows = 1:gene_length,
     metric = "log_likelihood"
   )
   ggsave(file.path(stacked_dir, paste0("loglik_", aa, "_", codon, ".pdf")), 
